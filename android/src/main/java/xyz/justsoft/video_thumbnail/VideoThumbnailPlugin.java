@@ -59,7 +59,11 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
 
     @Override
     public void onCancel(Object arguments) {
-
+        try {
+            exoPlayer.stop();
+            exoPlayer.release();
+        } catch (Exception e) {
+        }
     }
 
     private void playVideo(String url) {
