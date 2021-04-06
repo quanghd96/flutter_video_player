@@ -149,7 +149,7 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
                     try {
                         Bitmap bmp = textureView.getBitmap();
                         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                        bmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 80, stream);
                         byte[] byteArray = stream.toByteArray();
                         bmp.recycle();
                         eventSink.success(byteArray);
@@ -239,7 +239,7 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
                 try {
                     Bitmap bmp = textureView.getBitmap();
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                    bmp.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 80, stream);
                     byte[] byteArray = stream.toByteArray();
                     bmp.recycle();
                     eventSink.success(byteArray);
