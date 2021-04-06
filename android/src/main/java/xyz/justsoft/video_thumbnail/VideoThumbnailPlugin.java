@@ -80,8 +80,9 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
                 ijkPlayer.release();
             }
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
+        eventSink.endOfStream();
     }
 
     private void playVideoExoPlayer(String url) {
