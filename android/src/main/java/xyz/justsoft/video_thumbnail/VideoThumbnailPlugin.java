@@ -44,7 +44,7 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
 
     final private static AtomicInteger atomicId = new AtomicInteger(0);
 
-    private static int mPlayerId;
+    private static String mPlayerId;
 
     private SimpleExoPlayer exoPlayer;
     private IjkMediaPlayer ijkPlayer;
@@ -54,16 +54,17 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
 
     public static void registerWith(Registrar registrar) {
         mRegistrar = registrar;
-        mPlayerId = atomicId.incrementAndGet();
-        EventChannel eventChannel = new EventChannel(mRegistrar.messenger(), "video_event/" + mPlayerId);
-        eventChannel.setStreamHandler(new VideoThumbnailPlugin());
-         MethodChannel methodChannel = new MethodChannel(registrar.messenger(), "video_buffer");
+        MethodChannel methodChannel = new MethodChannel(registrar.messenger(), "video_buffer");
         methodChannel.setMethodCallHandler((call, result) -> {
-            if (call.method.equals("getId")) result.success(mPlayerId);
+            if (call.method.equals("setKey")) {
+                mPlayerId = (String) call.arguments;
+                EventChannel eventChannel = new EventChannel(mRegistrar.messenger(), "video_event/" + mPlayerId);
+                eventChannel.setStreamHandler(new VideoThumbnailPlugin());
+                result.success(mPlayerId);
+            }
         });
 
     }
-
 
 
     @Override

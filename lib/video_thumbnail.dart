@@ -5,12 +5,12 @@ import 'package:flutter/services.dart';
 class VideoThumbnail {
   static const MethodChannel _channel = const MethodChannel('video_buffer');
 
-  static getId() async {
-    return _channel.invokeMethod("getId");
+  static setKey(String key) async {
+    return _channel.invokeMethod("setKey", key);
   }
 
-  static Stream<dynamic> streamVideo(int id, String video) {
-    final EventChannel _eventChannel = EventChannel('video_event/$id');
+  static Stream<dynamic> streamVideo(String key, String video) {
+    final EventChannel _eventChannel = EventChannel('video_event/$key');
     final reqMap = <String, dynamic>{'video': video};
     return _eventChannel.receiveBroadcastStream(reqMap);
   }

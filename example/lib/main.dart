@@ -36,8 +36,8 @@ class _GenThumbnailImageState extends State<GenThumbnailImage> {
 
   stream() async {
     String link = "https://www.w3schools.com/html/mov_bbb.mp4";
-    int id = await VideoThumbnail.getId();
-    VideoThumbnail.streamVideo(id, link).listen((event) {
+    await VideoThumbnail.setKey("test");
+    VideoThumbnail.streamVideo("test", link).listen((event) {
       setState(() {
         bytes = event;
       });
