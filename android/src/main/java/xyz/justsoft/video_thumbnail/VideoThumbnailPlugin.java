@@ -29,8 +29,10 @@ import com.google.android.exoplayer2.util.Util;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
 
@@ -40,6 +42,10 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
     private static final String FORMAT_HLS = "hls";
     private static final String FORMAT_OTHER = "other";
 
+    final private static AtomicInteger atomicId = new AtomicInteger(0);
+
+    private static int mPlayerId;
+
     private SimpleExoPlayer exoPlayer;
     private IjkMediaPlayer ijkPlayer;
 
@@ -48,15 +54,24 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
 
     public static void registerWith(Registrar registrar) {
         mRegistrar = registrar;
-        EventChannel eventChannel = new EventChannel(registrar.messenger(), "video_event");
+        mPlayerId = atomicId.incrementAndGet();
+        EventChannel eventChannel = new EventChannel(mRegistrar.messenger(), "video_event/" + mPlayerId);
         eventChannel.setStreamHandler(new VideoThumbnailPlugin());
+         MethodChannel methodChannel = new MethodChannel(registrar.messenger(), "video_buffer");
+        methodChannel.setMethodCallHandler((call, result) -> {
+            if (call.method.equals("getId")) result.success(mPlayerId);
+        });
+
     }
+
+
 
     @Override
     public void onListen(Object arguments, final EventChannel.EventSink events) {
         eventSink = events;
         Map<String, Object> args = (Map<String, Object>) arguments;
         String video = (String) args.get("video");
+
         if (video.startsWith("rtsp")) {
             playVideoIjk(video);
         } else {

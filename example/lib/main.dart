@@ -31,8 +31,13 @@ class _GenThumbnailImageState extends State<GenThumbnailImage> {
   @override
   void initState() {
     super.initState();
+    stream();
+  }
+
+  stream() async {
     String link = "https://www.w3schools.com/html/mov_bbb.mp4";
-    VideoThumbnail.thumbnailVideo(video: link).listen((event) {
+    int id = await VideoThumbnail.getId();
+    VideoThumbnail.streamVideo(id, link).listen((event) {
       setState(() {
         bytes = event;
       });
