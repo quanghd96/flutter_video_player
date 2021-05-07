@@ -3,31 +3,41 @@ package xyz.justsoft.video_thumbnail;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.net.Uri;
+import android.os.Handler;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.exoplayer2.C;
+import com.google.android.exoplayer2.DefaultRenderersFactory;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.MediaItem;
+import com.google.android.exoplayer2.Renderer;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.mediacodec.MediaCodecAdapter;
+import com.google.android.exoplayer2.mediacodec.MediaCodecSelector;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
-import com.google.android.exoplayer2.source.smoothstreaming.DefaultSsChunkSource;
-import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.util.Util;
+import com.google.android.exoplayer2.video.MediaCodecVideoRenderer;
+import com.google.android.exoplayer2.video.VideoRendererEventListener;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -102,20 +112,45 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
     }
 
     private void playVideoExoPlayer(String url) {
-        exoPlayer = new SimpleExoPlayer.Builder(mRegistrar.context()).build();
+        exoPlayer = new SimpleExoPlayer.Builder(mRegistrar.context(), new DefaultRenderersFactory(mRegistrar.context()) {
+            @Override
+            protected void buildVideoRenderers(Context context, int extensionRendererMode, MediaCodecSelector mediaCodecSelector, boolean enableDecoderFallback, Handler eventHandler, VideoRendererEventListener eventListener, long allowedVideoJoiningTimeMs, ArrayList<Renderer> out) {
+                MediaCodecVideoRenderer videoRenderer =
+                        new MediaCodecVideoRenderer(
+                                context,
+                                mediaCodecSelector,
+                                allowedVideoJoiningTimeMs,
+                                enableDecoderFallback,
+                                eventHandler,
+                                eventListener,
+                                MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY) {
+                            @Override
+                            protected boolean processOutputBuffer(long positionUs, long elapsedRealtimeUs, @Nullable MediaCodecAdapter codec, @Nullable ByteBuffer buffer, int bufferIndex, int bufferFlags, int sampleCount, long bufferPresentationTimeUs, boolean isDecodeOnlyBuffer, boolean isLastBuffer, Format format) throws ExoPlaybackException {
+                                byte[] bytes = new byte[buffer.remaining()];
+                                buffer.get(bytes);
+
+                                if (bytes.length > 0) {
+                                    Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
+                                    try {
+                                        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                                        bmp.compress(Bitmap.CompressFormat.JPEG, 60, stream);
+                                        byte[] byteArray = stream.toByteArray();
+                                        bmp.recycle();
+                                        mRegistrar.activity().runOnUiThread(() -> eventSink.success(byteArray));
+                                    } catch (Exception e) {
+                                    }
+                                }
+                                return super.processOutputBuffer(positionUs, elapsedRealtimeUs, codec, buffer, bufferIndex, bufferFlags, sampleCount, bufferPresentationTimeUs, isDecodeOnlyBuffer, isLastBuffer, format);
+                            }
+                        };
+                out.add(videoRenderer);
+            }
+        }).build();
         Uri uri = Uri.parse(url);
-        DataSource.Factory dataSourceFactory =
-                new DefaultHttpDataSourceFactory(
-                        "ExoPlayer",
-                        null,
-                        DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS,
-                        DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS,
-                        true
-                );
+        DataSource.Factory dataSourceFactory = new DefaultHttpDataSource.Factory();
         MediaSource mediaSource = buildMediaSource(uri, dataSourceFactory, null, mRegistrar.context());
         exoPlayer.setMediaSource(mediaSource);
         exoPlayer.prepare();
-        setupVideoPlayer();
         exoPlayer.setPlayWhenReady(true);
     }
 
@@ -186,9 +221,6 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
             type = Util.inferContentType(uri.getLastPathSegment());
         } else {
             switch (formatHint) {
-                case FORMAT_SS:
-                    type = C.TYPE_SS;
-                    break;
                 case FORMAT_DASH:
                     type = C.TYPE_DASH;
                     break;
@@ -204,11 +236,6 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
             }
         }
         switch (type) {
-            case C.TYPE_SS:
-                return new SsMediaSource.Factory(
-                        new DefaultSsChunkSource.Factory(mediaDataSourceFactory),
-                        new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
-                        .createMediaSource(MediaItem.fromUri(uri));
             case C.TYPE_DASH:
                 return new DashMediaSource.Factory(
                         new DefaultDashChunkSource.Factory(mediaDataSourceFactory),
