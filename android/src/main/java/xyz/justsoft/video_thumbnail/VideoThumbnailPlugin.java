@@ -3,10 +3,10 @@ package xyz.justsoft.video_thumbnail;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.net.Uri;
 import android.os.Handler;
+import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.ViewGroup;
@@ -36,7 +36,10 @@ import com.google.android.exoplayer2.video.MediaCodecVideoRenderer;
 import com.google.android.exoplayer2.video.VideoRendererEventListener;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -126,18 +129,19 @@ public class VideoThumbnailPlugin implements EventChannel.StreamHandler {
                                 MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY) {
                             @Override
                             protected boolean processOutputBuffer(long positionUs, long elapsedRealtimeUs, @Nullable MediaCodecAdapter codec, @Nullable ByteBuffer buffer, int bufferIndex, int bufferFlags, int sampleCount, long bufferPresentationTimeUs, boolean isDecodeOnlyBuffer, boolean isLastBuffer, Format format) throws ExoPlaybackException {
-                                byte[] bytes = new byte[buffer.remaining()];
-                                buffer.get(bytes);
-
-                                if (bytes.length > 0) {
-                                    Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
+                                if (buffer != null) {
+                                    Log.d("Quang", "saving...");
                                     try {
-                                        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                                        bmp.compress(Bitmap.CompressFormat.JPEG, 60, stream);
-                                        byte[] byteArray = stream.toByteArray();
-                                        bmp.recycle();
-                                        mRegistrar.activity().runOnUiThread(() -> eventSink.success(byteArray));
+                                        File dir = new File(mRegistrar.context().getFilesDir(), "mydir");
+                                        if (!dir.exists()) {
+                                            dir.mkdir();
+                                        }
+                                        FileChannel fc = new FileOutputStream(dir.getPath() + "/data.txt").getChannel();
+                                        fc.write(buffer);
+                                        fc.close();
+                                        Log.d("Quang", "save success");
                                     } catch (Exception e) {
+                                        e.printStackTrace();
                                     }
                                 }
                                 return super.processOutputBuffer(positionUs, elapsedRealtimeUs, codec, buffer, bufferIndex, bufferFlags, sampleCount, bufferPresentationTimeUs, isDecodeOnlyBuffer, isLastBuffer, format);
